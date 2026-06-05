@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>인천서희학교 챗봇</title>
+
+  <!-- 부드러운 한글 글씨체 (Gowun Dodum) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Gowun+Dodum&display=swap" rel="stylesheet">
+
+  <!-- Bot Framework Web Chat -->
+  <script src="https://cdn.botframework.com/botframework-webchat/latest/webchat.js"></script>
+
+  <style>
+    :root {
+      --peach: #E7C4B6;   /* 살구/연핑크 */
+      --olive: #9FB04A;   /* 올리브/세이지 그린 */
+      --soft-font: 'Gowun Dodum', 'Apple SD Gothic Neo', 'Pretendard', sans-serif;
+    }
+
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      font-family: var(--soft-font);
+    }
+
+    /* 화면 중앙 배치 + 연한 배경 */
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #FAF7F5;
+    }
+
+    /* 챗봇 전체 창: 가로 = 화면의 절반(50vw), 높이 = 화면의 2/3(약 66.7vh) */
+    #chat-container {
+      display: flex;
+      flex-direction: column;
+      width: 50vw;
+      height: 66.7vh;
+      background-color: #FFFFFF;
+      border: 1px solid var(--peach);
+      border-radius: 16px;
+      box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+      overflow: hidden;
+    }
+
+    /* 타이틀 바 */
+    #chat-header {
+      flex: 0 0 auto;
+      background-color: var(--olive);
+      color: #FFFFFF;
+      font-family: var(--soft-font);
+      font-size: 18px;
+      font-weight: 700;
+      padding: 16px 20px;
+      text-align: center;
+      letter-spacing: 0.5px;
+    }
+
+    /* 채팅 영역은 남은 공간을 모두 채움 */
+    #webchat {
+      flex: 1 1 auto;
+      min-height: 0;
+      background-color: #FFFFFF;
+    }
+
+    /* 모바일에서는 꽉 차게 */
+    @media (max-width: 768px) {
+      #chat-container {
+        width: 95vw;
+        height: 90vh;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="chat-container">
+    <div id="chat-header">인천서희학교 챗봇</div>
+    <div id="webchat" role="main"></div>
+  </div>
+
+  <script>
+    // ============================================================
+    // 1) 토큰 엔드포인트 (입력 완료)
+    // ============================================================
+    const tokenEndpoint = "https://default62ae463a9f124edf85444f6ca38345.24.environment.api.powerplatform.com/powervirtualagents/botsbyschema/cre4a_seohee/directline/token?api-version=2022-03-01-preview";
+
+    // ============================================================
+    // 2) 디자인 설정 (styleOptions)
+    //    컬러: #E7C4B6 (살구) / #9FB04A (올리브)
+    //    글씨체: 부드러운 Gowun Dodum
+    //    버튼: 채움색 없이 테두리만
+    // ============================================================
+    const styleOptions = {
+      // 글씨체
+      primaryFont: "'Gowun Dodum', 'Apple SD Gothic Neo', 'Pretendard', sans-serif",
+
+      // 전체 배경 / 강조색
+      backgroundColor: "#FFFFFF",
+      accent: "#9FB04A",
+
+      // 봇(상대) 말풍선 - 흰 배경 + 살구색 테두리
+      bubbleBackground: "#FFFFFF",
+      bubbleBorderColor: "#E7C4B6",
+      bubbleBorderStyle: "solid",
+      bubbleBorderWidth: 1,
+      bubbleBorderRadius: 16,
+      bubbleTextColor: "#4A4A4A",
+
+      // 사용자(나) 말풍선 - 살구색 배경
+      bubbleFromUserBackground: "#E7C4B6",
+      bubbleFromUserBorderColor: "#E7C4B6",
+      bubbleFromUserBorderStyle: "solid",
+      bubbleFromUserBorderWidth: 1,
+      bubbleFromUserBorderRadius: 16,
+      bubbleFromUserTextColor: "#4A4A4A",
+
+      // 입력창
+      sendBoxBackground: "#FFFFFF",
+      sendBoxBorderTop: "solid 1px #E7C4B6",
+      sendBoxTextColor: "#4A4A4A",
+      sendBoxPlaceholderColor: "#A89C97",
+      sendBoxButtonColor: "#9FB04A",
+      sendBoxButtonColorOnHover: "#869636",
+
+      // 추천(빠른 응답) 버튼 - 채움색 없이 테두리만!
+      suggestedActionBackgroundColor: "transparent",
+      suggestedActionBackgroundColorOnHover: "#F3F6E6",
+      suggestedActionBorderColor: "#9FB04A",
+      suggestedActionBorderStyle: "solid",
+      suggestedActionBorderWidth: 1,
+      suggestedActionBorderRadius: 20,
+      suggestedActionTextColor: "#9FB04A"
+    };
+
+    // ============================================================
+    // 3) 연결 로직 (수정할 필요 없음)
+    // ============================================================
+    const environmentEndPoint = tokenEndpoint.slice(
+      0,
+      tokenEndpoint.indexOf("/powervirtualagents")
+    );
+    const apiVersion = tokenEndpoint
+      .slice(tokenEndpoint.indexOf("api-version"))
+      .split("=")[1];
+    const regionalChannelSettingsURL =
+      `${environmentEndPoint}/powervirtualagents/regionalchannelsettings?api-version=${apiVersion}`;
+
+    // 대화 시작 시 인사말 자동 트리거
+    function createCustomStore() {
+      return window.WebChat.createStore({}, ({ dispatch }) => (next) => (action) => {
+        if (action.type === "DIRECT_LINE/CONNECT_FULFILLED") {
+          dispatch({
+            type: "DIRECT_LINE/POST_ACTIVITY",
+            meta: { method: "keyboard" },
+            payload: {
+              activity: {
+                channelData: { postBack: true },
+                name: "startConversation",
+                type: "event"
+              }
+            }
+          });
+        }
+        return next(action);
+      });
+    }
+
+    async function initializeChat() {
+      try {
+        const regionResponse = await fetch(regionalChannelSettingsURL);
+        const regionData = await regionResponse.json();
+        const directLineUrl = regionData.channelUrlsById.directline;
+
+        const tokenResponse = await fetch(tokenEndpoint);
+        const tokenInfo = await tokenResponse.json();
+
+        const directLine = window.WebChat.createDirectLine({
+          domain: `${directLineUrl}v3/directline`,
+          token: tokenInfo.token
+        });
+
+        window.WebChat.renderWebChat(
+          {
+            directLine,
+            styleOptions,
+            store: createCustomStore()
+          },
+          document.getElementById("webchat")
+        );
+      } catch (err) {
+        console.error("챗봇 초기화 실패:", err);
+      }
+    }
+
+    initializeChat();
+  </script>
+</body>
+</html>
